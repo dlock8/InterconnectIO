@@ -1,5 +1,6 @@
-# cronologic WebUSB SCPI firmware
+# First TestStation Interconnect IO SCPI firmware
 
+It's based on the webusb 
 This will become the firmware for the [cronologic WebUSB project](https://github.com/cronologic-de/webusb).
 It’s based on the Raspberry Pi Pico’s C/C++ SDK and [Jan Breuer’s `scpi-parser` library](https://github.com/j123b567/scpi-parser).
 
@@ -29,6 +30,6 @@ However, there are two caveats:
 
 ## Development
 
-* [`serial_scpi.c`](serial_scpi.c) is the main source file for the firmware.
+* [`fts_scpi.c`](fts_scpi.c) is the main source file for the firmware.
 * [`CMakeLists.txt`](CMakeLists.txt) contains build instructions for CMake, including how to build the SCPI library.
 * [`pico_sdk_import.cmake`](pico_sdk_import.cmake) was (as usual) copied verbatim from the Pico SDK and allows CMake to interact with the SDK’s functionality.
