@@ -8,7 +8,7 @@
 // "IDN?" fields. Their meanings are "suggestions" in the standard.
 #define SCPI_IDN1 "FirstTestStation"      /* Manufacturer */
 #define SCPI_IDN2 "InterconnectIO"       /* Model */
-#define SCPI_IDN3 "2002A"               /* no suggestion */
+#define SCPI_IDN3 "2022A"               /* no suggestion */
 #define SCPI_IDN4 "0.1"                /* Firmware level */
 
 // This will hold the SCPI "instance".

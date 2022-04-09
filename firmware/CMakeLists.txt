@@ -32,16 +32,16 @@ add_dependencies(scpi_parser scpi_parser_build)
 target_link_libraries(scpi_parser INTERFACE "${scpi_parser_PREFIX}/libscpi.a")
 target_include_directories(scpi_parser INTERFACE "${scpi_parser_SOURCE_DIR}/inc")
 
-add_executable(serial_scpi
-	serial_scpi.c
+add_executable(fts_scpi
+	fts_scpi.c
 )
 
-pico_enable_stdio_usb(serial_scpi 1)
-pico_enable_stdio_uart(serial_scpi 1)
+pico_enable_stdio_usb(fts_scpi 1)
+pico_enable_stdio_uart(fts_scpi 1)
 
-pico_add_extra_outputs(serial_scpi)
+pico_add_extra_outputs(fts_scpi)
 
-target_link_libraries(serial_scpi
+target_link_libraries(fts_scpi
 	pico_stdlib
 	scpi_parser
 )
