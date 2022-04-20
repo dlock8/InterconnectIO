@@ -33,3 +33,14 @@ However, there are two caveats:
 * [`fts_scpi.c`](fts_scpi.c) is the main source file for the firmware.
 * [`CMakeLists.txt`](CMakeLists.txt) contains build instructions for CMake, including how to build the SCPI library.
 * [`pico_sdk_import.cmake`](pico_sdk_import.cmake) was (as usual) copied verbatim from the Pico SDK and allows CMake to interact with the SDK’s functionality.
+
+
+## SCPI command supported
+
+ROUTe:CLOSe (@<ch_list>)  
+ROUTe:CLOSe:EXCLusive (@<ch_list>) 
+ROUTe:OPEN (@<ch_list>)
+ROUTE:OPEN:ALL[{1-4|ALL}] 
+
+SYSTem:BEEPer
+
