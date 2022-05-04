@@ -2,36 +2,21 @@
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
 #include "scpi/scpi.h"
+#include "include/fts_scpi.h"
 
-#include "hardware/uart.h"
-
-
-#define UART_ID uart0
-#define BAUD_RATE 115200
-
-// We are using pins 0 and 1, but see the GPIO function select table in the
-// datasheet for information on which other pins can be used.
-#define UART_TX_PIN 0
-#define UART_RX_PIN 1
-
-
-// "IDN?" fields. Their meanings are "suggestions" in the standard.
-#define SCPI_IDN1 "FirstTestStation"      /* Manufacturer */
-#define SCPI_IDN2 "InterconnectIO"       /* Model */
-#define SCPI_IDN3 "2022A"               /* no suggestion */
-#define SCPI_IDN4 "0.1"                /* Firmware level */
-
+// This will hold the SCPI "instance".
+scpi_t scpi_context;
 
 
 // This will hold the SCPI "instance".
 scpi_t scpi_context;
 
 // Input buffer for reading SCPI commands.
-#define SCPI_INPUT_BUFFER_SIZE 256
+
 char scpi_input_buffer[SCPI_INPUT_BUFFER_SIZE];
 
 // Error queue required by the library. Size taken from the docs.
-#define SCPI_ERROR_QUEUE_SIZE 17
+
 scpi_error_t scpi_error_queue[SCPI_ERROR_QUEUE_SIZE];
 
 
@@ -40,29 +25,31 @@ size_t write_scpi(scpi_t *context, const char *data, size_t len) {
 	return fwrite(data, 1, len, stdout);
 }
 
-struct _scpi_channel_value_t {
-    int32_t row;
-    int32_t col;
+
+
+
+// Additional callbacks to be used by the library.
+scpi_interface_t scpi_interface = {
+	.write = write_scpi,
+	.error = NULL,
+	.reset = NULL,
 };
-typedef struct _scpi_channel_value_t scpi_channel_value_t;
+
+
 
 /**
  * @brief
  * parses lists
  * channel numbers > 0.
  * no checks yet.
- * valid: (@1), (@3!1:1!3), ...
- * (@1!1:3!2) would be 1!1, 1!2, 2!1, 2!2, 3!1, 3!2.
- * (@3!1:1!3) would be 3!1, 3!2, 3!3, 2!1, 2!2, 2!3, ... 1!3.
+ * Only 1 dimension
  *
  * @param channel_list channel list, compare to SCPI99 Vol 1 Ch. 8.3.2
  */
-static scpi_result_t Relay_Chanlst(scpi_t *context) {
+scpi_result_t Relay_Chanlst(scpi_t *context, int32_t *array) {
     scpi_parameter_t channel_list_param;
-#define MAXROW 1    /* maximum number of rows */
-#define MAXCOL 10    /* maximum number of columns */
-#define MAXDIM 1    /* maximum number of dimensions */
-    scpi_channel_value_t array[MAXROW * MAXCOL]; /* array which holds values in order (2D) */
+
+   // scpi_channel_value_t array[MAXROW * MAXCOL]; /* array which holds values in order (2D) */
     size_t chanlst_idx; /* index for channel list */
     size_t arr_idx = 0; /* index for array */
     size_t n, m = 1; /* counters for row (n) and columns (m) */
@@ -92,8 +79,8 @@ static scpi_result_t Relay_Chanlst(scpi_t *context) {
                          * row == values_from[0]
                          * col == 0 (fixed number)
                          * call a function or something */
-                        array[arr_idx].row = values_from[0];
-                        array[arr_idx].col = 0;
+                        array[arr_idx] = values_from[0];
+                      //  array[arr_idx].col = 0;
                     } else {
                         return SCPI_RES_ERR;
                     }
@@ -118,8 +105,8 @@ static scpi_result_t Relay_Chanlst(scpi_t *context) {
                              * row == n
                              * col == 0 (fixed number)
                              * call function or sth. */
-                            array[arr_idx].row = n;
-                            array[arr_idx].col = 0;
+                            array[arr_idx] = n;
+                          //  array[arr_idx].col = 0;
                             arr_idx++;
                             if (arr_idx >= MAXROW * MAXCOL) {
                                 return SCPI_RES_ERR;
@@ -141,7 +128,7 @@ static scpi_result_t Relay_Chanlst(scpi_t *context) {
             /* while checks, whether incremented index is valid */
         }
         /* do something at the end if needed */
-        /* array[arr_idx].row = 0; */
+         array[arr_idx] = 0;   // flag for end of array
         /* array[arr_idx].col = 0; */
     }
 
@@ -149,29 +136,44 @@ static scpi_result_t Relay_Chanlst(scpi_t *context) {
         size_t i;
         fprintf(stdout, "Channel List: ");
         for (i = 0; i< arr_idx; i++) {
-            fprintf(stdout, "%d,", array[i].row);
+            fprintf(stdout, "%d,", array[i]);
             
         }
         fprintf(stdout, "\r\n");
+    
+
     }
     return SCPI_RES_OK;
 }
-#define SCPI_EXCL "EXCL"
 
-static scpi_result_t Relay_Chanlst2(scpi_t *context) {
+
+
+
+static scpi_result_t Relay_scpi(scpi_t *context) {
     scpi_parameter_t channel_list_param;
     volatile scpi_bool_t ValMatch;
-    int32_t Valtag, Vcomp;
+    int32_t Valtag, Vcomp, *px;
     char cdat;
+    volatile scpi_result_t  flag;
+    int32_t array[MAXROW * MAXCOL]; /* array which holds values in order (2D) */
+
 
  fprintf(stdout,"tag test\r\n");
 
- fprintf(stdout,"raw: %s\r\n", context->param_list.cmd_raw.data);
+ //fprintf(stdout,"raw: %s\r\n", context->param_list.cmd_raw.data);
   
   Valtag = SCPI_CmdTag(context);
 
   fprintf(stdout,"tagvalue: %d\r\n", Valtag);
 
+   flag = Relay_Chanlst(context, array);
+   size_t i = 0;
+        fprintf(stdout, "Channel List from main: ");
+        do {
+            fprintf(stdout, "%d,", array[i]);
+            i++;
+        } while (array[i] > 0);
+        fprintf(stdout, "\r\n Channel List completed \r\n ");
 
   //ValMatch = SCPI_IsCmd(context,SCPI_EXCL);
  // fprintf(stdout,"ValMatch: %dn\r\n", ValMatch);
@@ -189,35 +191,18 @@ static scpi_result_t Relay_Chanlst2(scpi_t *context) {
 
 
 
-
-// The SCPI commands we support and the callbacks they use.
+    // The SCPI commands we support and the callbacks they use.
 scpi_command_t scpi_commands[] = {
 	{ .pattern = "*IDN?", .callback = SCPI_CoreIdnQ, },
 	{ .pattern = "*RST",  .callback = SCPI_CoreRst, },
-    {.pattern = "ROUTe:CLOSE", .callback = Relay_Chanlst,1},
-    {.pattern = "ROUTe:CLOSE[:EXCLusive]", .callback = Relay_Chanlst,2},
-    {.pattern = "ROUTe:OPEN", .callback = Relay_Chanlst,3},
-    {.pattern = "ROUTe:OPEN:ALL", .callback = Relay_Chanlst,4},
+    {.pattern = "ROUTe:CLOSE", .callback = Relay_scpi,1},
+    {.pattern = "ROUTe:CLOSE[:EXCLusive]", .callback = Relay_scpi,2},
+    {.pattern = "ROUTe:OPEN", .callback = Relay_scpi,3},
+    {.pattern = "ROUTe:OPEN:ALL", .callback = Relay_scpi,4},
 	SCPI_CMD_LIST_END
 };
 
-// Additional callbacks to be used by the library.
-scpi_interface_t scpi_interface = {
-	.write = write_scpi,
-	.error = NULL,
-	.reset = NULL,
-};
-
-
-
-
-int main() {
-    int result;
-
-	bi_decl(bi_program_description("This is a test binary, including the SCPI library."));
-
-	stdio_init_all();
-
+void init_scpi(){
 
 	// Initialize the SCPI library.
 	SCPI_Init(
@@ -226,40 +211,4 @@ int main() {
 		scpi_input_buffer, SCPI_INPUT_BUFFER_SIZE,
 		scpi_error_queue, SCPI_ERROR_QUEUE_SIZE
 	);
-
-// Set up our UART with the required speed.
-    uart_init(UART_ID, BAUD_RATE);
-    stdout_uart_init();
-
-    // Set the TX and RX pins by using the function select on the GPIO
-    // Set datasheet for more information on function select
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-
-
-    // Send out a string, with CR/LF conversions
-    uart_puts(UART_ID, "UART Connected!\n");
-   
-
-#define TEST_SCPI_INPUT(cmd)  result = SCPI_Input(&scpi_context, cmd, strlen(cmd))
-
-   // TEST_SCPI_INPUT("TEST:CHANnellist (@1!2:3!4,5!6)\r\n");
-
-    TEST_SCPI_INPUT("IDN?)\r\n"); 
-    TEST_SCPI_INPUT("ROUT:CLOSE:EXCL (@120:125)\r\n"); 
-    TEST_SCPI_INPUT("ROUT:CLOSE (@100:105)\r\n"); 
-
-    
-   // TEST_SCPI_INPUT("TEST:CHANnellist (@100:105)\r\n");
-   // TEST_SCPI_INPUT("TEST:CHANnellist:EXCL (@120:125)\r\n");
-
-	while (1) {
-		// Feed single characters into the SCPI library.
-		// This is somewhat discouraged, since (according to the docs) it will
-		// apparently cause the whole buffer to be re-parsed after each character.
-		char c = fgetc(stdin);  // TODO: Error handling.
-		SCPI_Input(&scpi_context, &c, 1);
-	}
-	
-    printf("program terminated\r");
 }

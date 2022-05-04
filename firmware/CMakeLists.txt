@@ -23,6 +23,9 @@ ExternalProject_Add(scpi_parser_build
 	INSTALL_COMMAND cp -r "${scpi_parser_SOURCE_DIR}/dist/libscpi.a" "${scpi_parser_SOURCE_DIR}/inc" "${scpi_parser_PREFIX}"
 )
 
+
+
+
 # After the SCPI library has been built (using the "scpi_parser_build"
 # project), we define an "IMPORTED" library to be able to link to it and
 # include it.
@@ -32,16 +35,21 @@ add_dependencies(scpi_parser scpi_parser_build)
 target_link_libraries(scpi_parser INTERFACE "${scpi_parser_PREFIX}/libscpi.a")
 target_include_directories(scpi_parser INTERFACE "${scpi_parser_SOURCE_DIR}/inc")
 
-add_executable(fts_scpi
-	fts_scpi.c
+add_library(fts_scpi INTERFACE) #DL
+target_include_directories(fts_scpi INTERFACE ./include)
+target_sources(fts_scpi INTERFACE fts_scpi.c)
+
+add_executable(master
+	master.c
 )
 
-pico_enable_stdio_usb(fts_scpi 1)
-pico_enable_stdio_uart(fts_scpi 1)
+pico_enable_stdio_usb(master 1)
+pico_enable_stdio_uart(master 1)
 
-pico_add_extra_outputs(fts_scpi)
+pico_add_extra_outputs(master)
 
-target_link_libraries(fts_scpi
+target_link_libraries(master
 	pico_stdlib
 	scpi_parser
+	fts_scpi
 )
